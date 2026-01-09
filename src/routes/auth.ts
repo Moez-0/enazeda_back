@@ -24,18 +24,18 @@ const verifyOTPSchema = z.object({
 
 // Generate JWT token
 
-// Generate JWT token
 const generateToken = (userId: string): string => {
-  const secret = process.env.JWT_SECRET || "secret";
-
+  const secret: Secret = process.env.JWT_SECRET || "secret";
+  
   const options: SignOptions = {
-    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+    // Using 'as any' is the quickest fix for process.env variables in this context
+    expiresIn: (process.env.JWT_EXPIRES_IN || "7d") as any,
   };
 
-  // Cast secret properly for jwt v9
-  return jwt.sign({ userId }, secret as unknown as jwt.Secret, options);
+  return jwt.sign({ userId }, secret, options);
 };
 // Generate JWT token
+
 // Request OTP for phone login
 router.post("/phone/request-otp", async (req: Request, res: Response, next: NextFunction) => {
   try {
