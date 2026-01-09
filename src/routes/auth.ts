@@ -23,16 +23,17 @@ const verifyOTPSchema = z.object({
 });
 
 // Generate JWT token
+
 // Generate JWT token
 const generateToken = (userId: string): string => {
-  // Cast secret to Secret type
-  const secret: Secret = process.env.JWT_SECRET || "secret";
+  const secret = process.env.JWT_SECRET || "secret";
 
   const options: SignOptions = {
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   };
 
-  return jwt.sign({ userId }, secret, options);
+  // Cast secret properly for jwt v9
+  return jwt.sign({ userId }, secret as unknown as jwt.Secret, options);
 };
 // Generate JWT token
 // Request OTP for phone login
