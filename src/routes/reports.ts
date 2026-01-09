@@ -46,20 +46,23 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response, next: Nex
 });
 
 // Get heatmap data (aggregated reports)
-router.get("/heatmap", async (req: Request, res: Response, next: NextFunction) => {
+// Get heatmap data (aggregated reports)
+router.get("/heatmap", async (req: any, res: any, next: any) => {
   try {
-    const { lat, lng, radius = 5000 } = req.query;
+    // Parse query parameters safely
+    const lat = req.query.lat;
+    const lng = req.query.lng;
+    const radius = req.query.radius || "5000";
 
     if (!lat || !lng) {
       throw createError("Latitude and longitude required", 400);
     }
 
-    const centerLat = parseFloat(lat as string);
-    const centerLng = parseFloat(lng as string);
-    const radiusMeters = parseFloat(radius as string);
+    const centerLat = parseFloat(lat);
+    const centerLng = parseFloat(lng);
+    const radiusMeters = parseFloat(radius);
 
-    // Get reports within radius (simplified for now)
-    // In production, use geospatial queries
+    // Get reports within radius (simplified geospatial logic)
     const reports = await Report.find({
       "location.lat": {
         $gte: centerLat - radiusMeters / 111000,
@@ -75,25 +78,25 @@ router.get("/heatmap", async (req: Request, res: Response, next: NextFunction) =
       .select("type location createdAt");
 
     // Group by rounded coordinates for heatmap
-    const grouped = reports.reduce((acc: any, report: any) => {
+    const grouped: Record<string, any> = {};
+
+    reports.forEach((report: any) => {
       const latKey = Math.round(report.location.lat * 100) / 100;
       const lngKey = Math.round(report.location.lng * 100) / 100;
       const key = `${latKey},${lngKey}`;
-      
-      if (!acc[key]) {
-        acc[key] = {
+
+      if (!grouped[key]) {
+        grouped[key] = {
           lat: latKey,
           lng: lngKey,
           count: 0,
           types: {} as Record<string, number>,
         };
       }
-      
-      acc[key].count++;
-      acc[key].types[report.type] = (acc[key].types[report.type] || 0) + 1;
-      
-      return acc;
-    }, {});
+
+      grouped[key].count++;
+      grouped[key].types[report.type] = (grouped[key].types[report.type] || 0) + 1;
+    });
 
     res.json({ reports: Object.values(grouped) });
   } catch (error) {
