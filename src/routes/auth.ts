@@ -25,14 +25,16 @@ const verifyOTPSchema = z.object({
 // Generate JWT token
 // Generate JWT token
 const generateToken = (userId: string): string => {
-  // Secret must be explicitly typed as Secret
-const secret = (process.env.JWT_SECRET || "secret") as Secret;
+  // Cast secret to Secret type
+  const secret: Secret = process.env.JWT_SECRET || "secret";
+
   const options: SignOptions = {
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   };
 
   return jwt.sign({ userId }, secret, options);
 };
+// Generate JWT token
 // Request OTP for phone login
 router.post("/phone/request-otp", async (req: Request, res: Response, next: NextFunction) => {
   try {
