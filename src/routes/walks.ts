@@ -105,78 +105,71 @@ router.post("/:sessionId/panic", authenticate, async (req: AuthRequest, res: Res
       throw createError("Walk session not found", 404);
     }
 
-    // Get walker info
+    // Walker info
     const walker = walk.userId as any;
     const walkerName = walker?.name || walker?.email || "Someone";
 
-    // Get all contacts (emergency contacts and guardians)
+    // Contacts (emergency + guardian)
     const contacts = await Contact.find({
       _id: { $in: [...walk.contactIds, ...walk.guardianIds] },
       userId: req.userId,
     }).populate("userId", "email phone");
 
-    // Find guardian users by matching phone/email
+    // Guardians
     const guardianUserIds: mongoose.Types.ObjectId[] = [];
-    
     for (const contact of contacts) {
       if (contact.type === "guardian") {
-        // Find users that match this guardian contact's phone or email
-        const guardianQuery: any = {};
         const orConditions: any[] = [];
-        
-        if (contact.email) {
-          orConditions.push({ email: contact.email.toLowerCase().trim() });
-        }
-        if (contact.phone) {
-          orConditions.push({ phone: contact.phone.trim() });
-        }
-        
+        if (contact.email) orConditions.push({ email: contact.email.toLowerCase().trim() });
+        if (contact.phone) orConditions.push({ phone: contact.phone.trim() });
         if (orConditions.length > 0) {
-          guardianQuery.$or = orConditions;
-          const guardianUsers = await User.find(guardianQuery);
-          guardianUserIds.push(...guardianUsers.map(u => u._id));
+          const guardians = await User.find({ $or: orConditions });
+          guardianUserIds.push(...guardians.map(u => u._id));
         }
       }
     }
 
-    // Create panic notifications for all guardian users
-    const panicLocation = location || walk.currentLocation || walk.startLocation;
+    // Notifications
+    const panicLocation = location ?? walk.currentLocation ?? walk.startLocation ?? { lat: 0, lng: 0 };
     const notifications = guardianUserIds.map(guardianUserId => ({
       userId: guardianUserId,
       type: "panic" as const,
       title: "🚨 Panic Alert",
-      message: `${walkerName} has triggered a panic button during their walk. Please check their location immediately.`,
+      message: `${walkerName} has triggered a panic button during their walk.`,
       walkId: walk._id,
       isRead: false,
-      metadata: {
-        location: panicLocation,
-        userName: walkerName,
-        walkSessionId: walk._id.toString(),
-        walkMode: walk.mode,
-      },
+      metadata: { location: panicLocation, userName: walkerName },
     }));
 
     if (notifications.length > 0) {
-      await Notification.insertMany(notifications);
-      console.log(`Panic triggered for walk ${sessionId}. Created ${notifications.length} notifications for guardians.`);
+      try {
+        await Notification.insertMany(notifications);
+        console.log(`Panic for walk ${sessionId}: created ${notifications.length} notifications`);
+      } catch (err) {
+        console.error("Error creating notifications:", err);
+      }
     }
 
-    // Also log for emergency contacts (for future SMS/push notification implementation)
     const emergencyContacts = contacts.filter(c => c.type === "emergency");
-    console.log(`Panic triggered for walk ${sessionId}. ${emergencyContacts.length} emergency contacts to notify via SMS.`);
+    if (emergencyContacts.length === 0) {
+      console.log(`No emergency contacts for walk ${sessionId}`);
+    }
 
+    // Always respond
     res.json({
       sessionId: walk._id.toString(),
       panicTriggered: true,
-      timestamp: new Date().toISOString(),
-      message: "Emergency contacts and guardians have been notified",
       notificationsSent: notifications.length,
+      emergencyContacts: emergencyContacts.length,
+      timestamp: new Date().toISOString(),
+      message: "Panic processed successfully",
     });
+
   } catch (error) {
+    console.error("Panic route error:", error);
     next(error);
   }
 });
-
 // Add check-in
 router.post("/:sessionId/checkin", authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
