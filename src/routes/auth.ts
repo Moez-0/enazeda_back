@@ -26,7 +26,7 @@ const verifyOTPSchema = z.object({
 const generateToken = (userId: string): string => {
     const secret: Secret = process.env.JWT_SECRET ?? "secret"; 
     const options: SignOptions = {
-    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+    expiresIn: process.env.JWT_EXPIRES_IN ??  "7d",
   };
 
   return jwt.sign({ userId }, secret, options);
