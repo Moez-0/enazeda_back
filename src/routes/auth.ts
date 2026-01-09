@@ -3,7 +3,7 @@ import { User } from "../models/User";
 import { createError } from "../middleware/errorHandler";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import jwt, { SignOptions } from "jsonwebtoken";
+import jwt, { SignOptions, Secret } from "jsonwebtoken";
 const router = express.Router();
 
 // Validation schemas
@@ -23,10 +23,13 @@ const verifyOTPSchema = z.object({
 });
 
 // Generate JWT token
+// Generate JWT token
 const generateToken = (userId: string): string => {
-    const secret: Secret = process.env.JWT_SECRET ?? "secret"; 
-    const options: SignOptions = {
-    expiresIn: process.env.JWT_EXPIRES_IN ??  "7d",
+  // Secret must be explicitly typed as Secret
+  const secret: Secret = process.env.JWT_SECRET as Secret || "secret";
+
+  const options: SignOptions = {
+    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   };
 
   return jwt.sign({ userId }, secret, options);
