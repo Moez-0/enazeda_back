@@ -1,10 +1,9 @@
 import express, { Request, Response, NextFunction } from "express";
 import { User } from "../models/User";
 import { createError } from "../middleware/errorHandler";
-import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-
+import jwt, { SignOptions } from "jsonwebtoken";
 const router = express.Router();
 
 // Validation schemas
@@ -25,13 +24,12 @@ const verifyOTPSchema = z.object({
 
 // Generate JWT token
 const generateToken = (userId: string): string => {
-  return jwt.sign(
-    { userId },
-    process.env.JWT_SECRET as string, // <-- cast to string
-    {
-      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-    }
-  );
+  const secret: string = process.env.JWT_SECRET || "secret"; // cast to string
+  const options: SignOptions = {
+    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  };
+
+  return jwt.sign({ userId }, secret, options);
 };
 // Request OTP for phone login
 router.post("/phone/request-otp", async (req: Request, res: Response, next: NextFunction) => {
